@@ -1,3 +1,7 @@
 [logs]
-level = "info" # Options: "error", "warn", "info", "debug", "trace"
+level = "debug" # Options: "error", "warn", "info", "debug", "trace"
 enable_reqwest_logging = false
+
+[[radarr.path_mappings]]
+radarr_root = "/data/library/movies"
+local_root = "/mnt/nas/medias/plex/library/movies"

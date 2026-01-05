@@ -29,6 +29,7 @@
             d2
             inkscape
             pkgs-master.yt-dlp
+            mediainfo
 
             glibcLocales
           ];

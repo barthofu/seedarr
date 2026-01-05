@@ -1,0 +1,149 @@
+use std::process::Command;
+
+use serde_json::Value;
+use tracing::{info, warn};
+
+use crate::core::naming::TechnicalInfo;
+
+fn parse_int_from_value(v: &Value) -> Option<i64> {
+    match v {
+        Value::Number(n) => n.as_i64(),
+        Value::String(s) => {
+            let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+            if digits.is_empty() { None } else { digits.parse::<i64>().ok() }
+        }
+        _ => None,
+    }
+}
+
+fn map_video_codec(format: &str) -> Option<String> {
+    // Canonicalize to encoder-style tokens: x265/x264
+    let f = format.to_ascii_lowercase();
+    if f.contains("x265") || f.contains("hevc") || f.contains("h265") || f.contains("h.265") { Some("x265".to_string()) }
+    else if f.contains("x264") || f.contains("avc") || f.contains("h264") || f.contains("h.264") { Some("x264".to_string()) }
+    else { Some(format.to_string()) }
+}
+
+fn map_audio_codec(format: &str) -> Option<String> {
+    let f = format.to_ascii_lowercase();
+    if f.contains("e-ac-3") || f.contains("eac3") || f.contains("ddp") || f.contains("dolby digital plus") {
+        Some("EAC3".to_string())
+    } else if f.contains("ac-3") || f.contains("ac3") || f.contains("dolby digital") {
+        Some("AC3".to_string())
+    } else if f.contains("dts") { Some("DTS".to_string()) }
+    else if f.contains("aac") { Some("AAC".to_string()) }
+    else { Some(format.to_string()) }
+}
+
+fn map_channels(ch: i64) -> Option<String> {
+    match ch {
+        8 => Some("7.1".to_string()),
+        7 => Some("6.1".to_string()),
+        6 => Some("5.1".to_string()),
+        2 => Some("2.0".to_string()),
+        _ => None,
+    }
+}
+
+pub fn collect_technical_info(path: &str) -> TechnicalInfo {
+    info!(target: "ghostseed::mediainfo", path = %path, "Collecting technical info");
+    let output = Command::new("mediainfo")
+        .arg("--Output=JSON")
+        .arg(path)
+        .output();
+
+    let mut info = TechnicalInfo::default();
+
+    let Ok(out) = output else {
+        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to spawn mediainfo; is it installed?");
+        return info;
+    };
+    if !out.status.success() {
+        warn!(target: "ghostseed::mediainfo", path = %path, status = ?out.status, "mediainfo exited with non-zero status");
+        return info;
+    }
+
+    let Ok(json): Result<Value, _> = serde_json::from_slice(&out.stdout) else {
+        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to parse mediainfo JSON output");
+        return info;
+    };
+    let tracks = json
+        .get("media").and_then(|m| m.get("track")).and_then(|t| t.as_array());
+    let Some(tracks) = tracks else { return info; };
+
+    for track in tracks {
+        let ttype = track.get("@type").and_then(|v| v.as_str()).unwrap_or("");
+        match ttype {
+            "Video" => {
+                // Resolution from Width preferred (convert width -> common p)
+                if let Some(w) = track.get("Width") { if let Some(wn) = parse_int_from_value(w) {
+                    let res = if wn >= 3800 { "2160p" } else if wn >= 2500 { "1440p" } else if wn >= 1900 { "1080p" } else if wn >= 1200 { "720p" } else { "480p" };
+                    info.resolution = Some(res.to_string());
+                }}
+                // Fallback to Height if Width unavailable
+                if info.resolution.is_none() {
+                    if let Some(h) = track.get("Height") { if let Some(hn) = parse_int_from_value(h) {
+                        let res = if hn >= 2160 { "2160p" } else if hn >= 1440 { "1440p" } else if hn >= 1080 { "1080p" } else if hn >= 720 { "720p" } else { "480p" };
+                        info.resolution = Some(res.to_string());
+                    }}
+                }
+                // Video codec
+                if let Some(fmt) = track.get("Format").and_then(|v| v.as_str()) {
+                    info.video_codec = map_video_codec(fmt);
+                }
+                // Bit depth
+                if let Some(bd) = track.get("BitDepth") {
+                    if let Some(bits) = parse_int_from_value(bd) { info.bit_depth = Some(format!("{}bit", bits)); }
+                }
+                // HDR/Dolby Vision
+                if let Some(hdrf) = track.get("HDR_Format").and_then(|v| v.as_str()) {
+                    let l = hdrf.to_ascii_lowercase();
+                    if l.contains("hdr") { info.hdr = true; }
+                    if l.contains("dolby vision") { info.dv = true; info.hdr = true; }
+                }
+                // Some files have Transfer_Characteristics or ColorPrimaries with PQ/HLG hints
+                if let Some(tc) = track.get("transfer_characteristics").and_then(|v| v.as_str()) {
+                    let l = tc.to_ascii_lowercase();
+                    if l.contains("pq") || l.contains("hlg") { info.hdr = true; }
+                }
+            }
+            "Audio" => {
+                if let Some(fmt) = track.get("Format").and_then(|v| v.as_str()) {
+                    info.audio_codec = map_audio_codec(fmt);
+                }
+                // Channels: prefer Channel(s), else Channel(s)_Original
+                let chan_val = track.get("Channel(s)").or_else(|| track.get("Channel(s)_Original"));
+                if let Some(cv) = chan_val { if let Some(n) = parse_int_from_value(cv) { info.audio_channels = map_channels(n); } }
+                // Alternatively, if textual contains "5.1", accept it
+                if info.audio_channels.is_none() {
+                    let text = chan_val.and_then(|v| v.as_str());
+                    if let Some(t) = text { if t.contains("5.1") { info.audio_channels = Some("5.1".to_string()); } }
+                }
+                // Audio language and VFI
+                let lang = track.get("Language").and_then(|v| v.as_str())
+                    .or_else(|| track.get("Language/String").and_then(|v| v.as_str()));
+                if let Some(l) = lang { 
+                    let lc = l.to_ascii_lowercase();
+                    let code = if lc.starts_with("fr") { "fr" } else if lc.starts_with("en") { "en" } else { lc.as_str() };
+                    info.audio_languages.insert(code.to_string());
+                }
+                let title = track.get("Title").and_then(|v| v.as_str()).unwrap_or("");
+                if !title.is_empty() && title.to_ascii_uppercase().contains("VFI") { info.has_vfi = true; }
+            }
+            "Text" => {
+                // Subtitle languages
+                let lang = track.get("Language").and_then(|v| v.as_str())
+                    .or_else(|| track.get("Language/String").and_then(|v| v.as_str()));
+                if let Some(l) = lang { 
+                    let lc = l.to_ascii_lowercase();
+                    let code = if lc.starts_with("fr") { "fr" } else if lc.starts_with("en") { "en" } else { lc.as_str() };
+                    info.subtitle_languages.insert(code.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    info!(target: "ghostseed::mediainfo", path = %path, res = ?info.resolution, vcodec = ?info.video_codec, bitdepth = ?info.bit_depth, hdr = info.hdr, dv = info.dv, acodec = ?info.audio_codec, ach = ?info.audio_channels, alangs = ?info.audio_languages, slangs = ?info.subtitle_languages, vfi = info.has_vfi, "Collected technical info summary");
+    info
+}

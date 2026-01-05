@@ -28,6 +28,7 @@ pub struct Config {
     // pub general: GeneralConfig,
     pub logs: LogsConfig,
     pub radarr: RadarrConfig,
+    pub paths: Option<PathsConfig>,
 }
 
 // ===============================================================================
@@ -61,4 +62,27 @@ pub struct LogsConfig {
 pub struct RadarrConfig {
     pub base_url: String,
     pub api_key: String,
+    #[serde(default)]
+    pub path_mappings: Vec<PathMap>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct PathMap {
+    /// Prefix as seen by Radarr (e.g. "/data/library/movies")
+    pub radarr_root: String,
+    /// Local absolute prefix (e.g. "/mnt/nas/medias/plex/library/movies")
+    pub local_root: String,
+}
+
+// ===============================================================================
+// Paths Mapping
+// ===============================================================================
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct PathsConfig {
+    /// Prefix reported by Radarr inside its container (e.g., "/movies")
+    pub radarr_root: String,
+    /// Local filesystem root where the same library is mounted (e.g., "/mnt/media/movies")
+    pub local_root: String,
 }
