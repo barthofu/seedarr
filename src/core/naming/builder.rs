@@ -1,4 +1,5 @@
 use super::types::{DecisionReason, RadarrHints, SceneDecision, SceneNameParts, TechnicalInfo, ValidationResult};
+use std::collections::BTreeSet;
 
 fn normalize_tokens_to_scene<S: AsRef<str>>(s: S) -> String {
     // Replace whitespace and separators with dots, collapse, strip leading/trailing dots
@@ -17,9 +18,7 @@ fn normalize_tokens_to_scene<S: AsRef<str>>(s: S) -> String {
     out.trim_matches('.').to_string()
 }
 
-fn pick<T: Clone>(a: Option<T>, b: Option<T>) -> Option<T> {
-    a.or(b)
-}
+// removed: pick helper no longer needed
 
 fn canonicalize_video_codec(s: &str) -> String {
     let l = s.to_ascii_lowercase();
@@ -30,7 +29,6 @@ fn canonicalize_video_codec(s: &str) -> String {
 
 fn language_tag(tech: &TechnicalInfo) -> Option<String> {
     // MULTi.VF if multiple audio languages; VF if only French; VOSTFR if only English (assume FR subs)
-    if tech.has_vfi { return Some("VFI".to_string()); }
     let count = tech.audio_languages.len();
     if count == 0 { return None; }
     if count > 1 { return Some("MULTi.VF".to_string()); }
@@ -40,71 +38,91 @@ fn language_tag(tech: &TechnicalInfo) -> Option<String> {
     else { None }
 }
 
-fn merge_parts(mut parsed: SceneNameParts, hints: &RadarrHints, tech: &TechnicalInfo) -> SceneNameParts {
-    // Title
-    if parsed.title_tokens.is_empty() {
-        let title = normalize_tokens_to_scene(&hints.title);
-        if !title.is_empty() {
-            parsed.title_tokens = title.split('.').map(|s| s.to_string()).collect();
-        }
+fn infer_resolution_from_quality(q: &Option<String>) -> Option<String> {
+    if let Some(qs) = q {
+        let ql = qs.to_ascii_lowercase();
+        if ql.contains("2160") || ql.contains("uhd") || ql.contains("4k") { return Some("2160p".to_string()); }
+        if ql.contains("1440") { return Some("1440p".to_string()); }
+        if ql.contains("1080") || ql.contains("fhd") { return Some("1080p".to_string()); }
+        if ql.contains("720") || ql.contains("hd") { return Some("720p".to_string()); }
     }
-
-    // Year
-    if parsed.year.is_none() {
-        parsed.year = hints.year;
-    }
-
-    // Resolution
-    parsed.resolution = pick(tech.resolution.clone(), parsed.resolution);
-    if parsed.resolution.is_none() {
-        if let Some(q) = &hints.quality {
-            let ql = q.to_ascii_lowercase();
-            parsed.resolution = if ql.contains("2160") || ql.contains("4k") { Some("2160p".to_string()) }
-                else if ql.contains("1440") { Some("1440p".to_string()) }
-                else if ql.contains("1080") { Some("1080p".to_string()) }
-                else if ql.contains("720") { Some("720p".to_string()) }
-                else { None };
-        }
-    }
-    if parsed.resolution.is_none() {
-        if let Some(q) = &hints.quality {
-            let ql = q.to_ascii_lowercase();
-            if ql.contains("2160") || ql.contains("uhd") || ql.contains("4k") { parsed.resolution = Some("2160p".to_string()); }
-            else if ql.contains("1080") || ql.contains("fhd") { parsed.resolution = Some("1080p".to_string()); }
-            else if ql.contains("720") || ql.contains("hd") { parsed.resolution = Some("720p".to_string()); }
-        }
-    }
-    // Source: retained from parsed; if missing try to infer from quality string a bit
-    if parsed.source.is_none() {
-        if let Some(q) = &hints.quality {
-            let ql = q.to_ascii_lowercase();
-            parsed.source = if ql.contains("web-dl") || ql.contains("webrip") || ql.contains("web") {
-                Some("WEB".to_string())
-            } else if ql.contains("blu") {
-                Some("BluRay".to_string())
-            } else { None };
-        }
-    }
-
-    // Codecs, audio
-    parsed.video_codec = pick(tech.video_codec.clone(), parsed.video_codec).map(|v| canonicalize_video_codec(&v));
-    parsed.audio_codec = pick(tech.audio_codec.clone(), parsed.audio_codec);
-    parsed.audio_channels = pick(tech.audio_channels.clone(), parsed.audio_channels);
-    parsed.bit_depth = pick(tech.bit_depth.clone(), parsed.bit_depth);
-
-    // HDR/DV flags
-    parsed.hdr = tech.hdr || parsed.hdr;
-    parsed.dv = tech.dv || parsed.dv;
-
-    // Languages: parsed already contains a set; keep it
-
-    // Release group: prefer parsed, else radarr
-    if parsed.release_group.is_none() {
-        parsed.release_group = hints.release_group.clone();
-    }
-
-    parsed
+    None
 }
+
+fn infer_source_from_quality(q: &Option<String>) -> Option<String> {
+    if let Some(qs) = q {
+        let ql = qs.to_ascii_lowercase();
+        if ql.contains("web-dl") || ql.contains("webrip") || ql.contains("web") { return Some("WEB".to_string()); }
+        if ql.contains("blu") { return Some("BluRay".to_string()); }
+    }
+    None
+}
+
+fn build_parts_from(hints: &RadarrHints, tech: &TechnicalInfo) -> SceneNameParts {
+    let mut parts = SceneNameParts::default();
+
+    // Title + year
+    let title = normalize_tokens_to_scene(&hints.title);
+    if !title.is_empty() { parts.title_tokens = title.split('.').map(|s| s.to_string()).collect(); }
+    parts.year = hints.year;
+
+    // Language tag
+    parts.language_tag = language_tag(tech);
+
+    // Resolution + source: prefer MediaInfo resolution; drop source if mismatch with quality-inferred resolution
+    let inferred_res = infer_resolution_from_quality(&hints.quality);
+    let inferred_source = infer_source_from_quality(&hints.quality);
+
+    parts.resolution = tech.resolution.clone().or(inferred_res.clone());
+    parts.source = inferred_source;
+
+    if let (Some(tr), Some(ir)) = (tech.resolution.as_ref(), inferred_res.as_ref()) {
+        if tr != ir {
+            parts.resolution = Some(tr.clone());
+            parts.source = None; // mismatch: trust MediaInfo, omit source
+        }
+    }
+
+    // Technical extras
+    parts.hdr = tech.hdr;
+    parts.dv = tech.dv;
+    parts.bit_depth = tech.bit_depth.clone();
+    parts.audio_codec = tech.audio_codec.clone();
+    parts.audio_channels = tech.audio_channels.clone();
+    parts.video_codec = tech.video_codec.as_ref().map(|v| canonicalize_video_codec(v));
+
+    // VFI: keep MULTi if present; add VFI as extra tag
+    if tech.has_vfi { parts.extra_tags.insert("VFI".to_string()); }
+
+    // Release group from Radarr
+    parts.release_group = hints.release_group.clone();
+
+    parts
+}
+
+fn salvage_special_tags(original: Option<&str>) -> BTreeSet<String> {
+    let mut tags: BTreeSet<String> = BTreeSet::new();
+    let Some(s) = original else { return tags; };
+    let l = s.to_ascii_lowercase();
+
+    // Requested tags
+    if l.contains("imax") { tags.insert("IMAX".to_string()); }
+    if l.contains("hdlight") { tags.insert("HDLight".to_string()); }
+    if l.contains("4klight") || l.contains("4k light") { tags.insert("4KLight".to_string()); }
+
+    // Common scene extras
+    if l.contains("unrated") { tags.insert("Unrated".to_string()); }
+    if l.contains("extended") { tags.insert("Extended".to_string()); }
+    if l.contains("remastered") { tags.insert("Remastered".to_string()); }
+    if l.contains("director") && l.contains("cut") { tags.insert("Directors.Cut".to_string()); }
+    if l.contains("theatrical cut") { tags.insert("Theatrical.Cut".to_string()); }
+    if l.contains("proper") { tags.insert("Proper".to_string()); }
+    if l.contains("repack") { tags.insert("Repack".to_string()); }
+
+    tags
+}
+
+// removed: merge_parts; we now build from hints + tech deterministically
 
 fn extras_to_vec(parts: &SceneNameParts) -> Vec<String> {
     use std::collections::BTreeSet;
@@ -166,18 +184,13 @@ fn assemble(parts: &SceneNameParts) -> String {
 /// Deterministically propose a scene name, optionally reusing info parsed from the original.
 /// If `original` is present and valid, we accept it to avoid unnecessary churn.
 pub fn propose_scene_name(original: Option<&str>, hints: &RadarrHints, tech: &TechnicalInfo, validation: Option<&ValidationResult>) -> SceneDecision {
-    if let Some(orig) = original {
-        if let Some(v) = validation { if v.valid { return SceneDecision { chosen: orig.to_string(), reason: DecisionReason::AcceptedExisting }; } }
-    }
+    // Always rebuild deterministically from Radarr hints + MediaInfo
+    let mut parts = build_parts_from(hints, tech);
+    // Salvage special tags from original scene name (case-insensitive)
+    for t in salvage_special_tags(original) { parts.extra_tags.insert(t); }
+    let rebuilt = assemble(&parts);
 
-    // Parse original to salvage unknown-but-useful tags
-    let mut parsed = original.map(super::parser::parse_scene_name).unwrap_or_default();
-    // Compute language tag from technical info now so assemble can place it
-    parsed.language_tag = language_tag(tech);
-    let merged = merge_parts(parsed, hints, tech);
-    let rebuilt = assemble(&merged);
-
-    let reason = if let Some(v) = validation { super::types::DecisionReason::Rebuilt { issues: v.issues.clone() } } else { super::types::DecisionReason::Rebuilt { issues: vec![] } };
+    let reason = if let Some(v) = validation { DecisionReason::Rebuilt { issues: v.issues.clone() } } else { DecisionReason::Rebuilt { issues: vec![] } };
 
     SceneDecision { chosen: rebuilt, reason }
 }

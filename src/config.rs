@@ -27,20 +27,20 @@ impl Config {
 pub struct Config {
     // pub general: GeneralConfig,
     pub logs: LogsConfig,
+    pub media: MediaConfig,
     pub radarr: RadarrConfig,
     pub paths: Option<PathsConfig>,
 }
 
 // ===============================================================================
-// General
+// Media
 // ===============================================================================
 
-// #[derive(Debug, Clone, Deserialize)]
-// #[allow(unused)]
-// pub struct GeneralConfig {
-//     pub base_library_dir: String,
-//     pub temp_download_dir: String,
-// }
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct MediaConfig {
+    pub use_original_title: bool,
+}
 
 // ===============================================================================
 // Logs

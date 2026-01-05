@@ -30,7 +30,7 @@ async fn main() {
     };
 
     let result = radarr::apis::movie_api::list_movie(&radarr_config, None, None, None).await;
-    // TODO: remove temporary 10 first movies limit
+    // TODO: remove temporary 50 first movies limit
     let movies = result
         .unwrap()
         .into_iter()
@@ -43,7 +43,11 @@ async fn main() {
         let scene_name = movie.movie_file.as_deref()
             .and_then(|mf| mf.scene_name.clone().flatten())
             .unwrap_or_else(|| "Unknown".to_string());
-        let title: String = movie.title.flatten().unwrap_or_else(|| "Unknown".to_string());
+        let title: String = if config.media.use_original_title {
+            movie.original_title.flatten().unwrap_or_else(|| "Unknown".to_string())
+        } else {
+            movie.title.flatten().unwrap_or_else(|| "Unknown".to_string())
+        };
         // let path: Option<String> = movie.movie_file.as_deref()
         //     .and_then(|mf| mf.path.clone().flatten());
         let year: Option<i32> = movie.year;

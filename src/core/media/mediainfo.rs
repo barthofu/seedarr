@@ -91,9 +91,11 @@ pub fn collect_technical_info(path: &str) -> TechnicalInfo {
                 if let Some(fmt) = track.get("Format").and_then(|v| v.as_str()) {
                     info.video_codec = map_video_codec(fmt);
                 }
-                // Bit depth
+                // Bit depth: only report 10bit; ignore 8bit
                 if let Some(bd) = track.get("BitDepth") {
-                    if let Some(bits) = parse_int_from_value(bd) { info.bit_depth = Some(format!("{}bit", bits)); }
+                    if let Some(bits) = parse_int_from_value(bd) {
+                        if bits >= 10 { info.bit_depth = Some("10bit".to_string()); }
+                    }
                 }
                 // HDR/Dolby Vision
                 if let Some(hdrf) = track.get("HDR_Format").and_then(|v| v.as_str()) {

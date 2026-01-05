@@ -2,6 +2,17 @@
 level = "debug" # Options: "error", "warn", "info", "debug", "trace"
 enable_reqwest_logging = false
 
+[media]
+use_original_title = true
+
 [[radarr.path_mappings]]
 radarr_root = "/data/library/movies"
 local_root = "/mnt/nas/medias/plex/library/movies"
+
+[[radarr.path_mappings]]
+radarr_root = "/data/library/animation"
+local_root = "/mnt/nas/medias/plex/library/animation"
+
+[[radarr.path_mappings]]
+radarr_root = "/data/library/documentaries"
+local_root = "/mnt/nas/medias/plex/library/documentaries"
