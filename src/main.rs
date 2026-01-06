@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::path::PathBuf;
 
 use tracing::Level;
 
@@ -18,6 +19,24 @@ async fn main() {
                 .unwrap_or(Level::INFO)
         )
         .init();
+
+    // Safety: ensure seed_path exists (and is a directory) at startup
+    if let Some(seed_root) = &config.media.seed_path {
+        let seed_path = PathBuf::from(seed_root);
+        if seed_path.exists() {
+            if !seed_path.is_dir() {
+                tracing::error!("Configured seed_path '{}' exists but is not a directory", seed_path.display());
+                return;
+            }
+        } else {
+            if let Err(e) = std::fs::create_dir_all(&seed_path) {
+                tracing::error!("Failed to create configured seed_path '{}': {}", seed_path.display(), e);
+                return;
+            } else {
+                tracing::info!("Created seed_path directory: '{}'", seed_path.display());
+            }
+        }
+    }
 
     // Step 1. List all movies in Radarr
     let radarr_config = radarr::apis::configuration::Configuration {
@@ -67,16 +86,30 @@ async fn main() {
             release_group: release_group.clone(),
         };
 
-        // MediaInfo integration: populate technical info using translated path (fallback to raw)
+        // MediaInfo integration: only process files that are path-mapped in config
         let raw_path: Option<String> = movie.movie_file.as_deref()
             .and_then(|mf| mf.path.clone().flatten());
-        let tech = match raw_path.as_ref() {
+        let local_path = match raw_path.as_ref() {
             Some(p) => {
-                let local_path = core::media::translate_radarr_path(p, &config);
-                tracing::debug!("mediainfo path: radarr='{}' local='{}'", p, local_path.display());
-                core::media::mediainfo::collect_technical_info(local_path.to_string_lossy().as_ref())
+                match core::media::try_translate_radarr_path(p, &config) {
+                    Some(lp) => Some(lp),
+                    None => {
+                        tracing::warn!("Skipping unmapped path (no radarr.path_mappings match): {}", p);
+                        continue;
+                    }
+                }
             }
-            None => core::naming::TechnicalInfo::default(),
+            None => {
+                tracing::warn!("Skipping movie with no file path");
+                continue;
+            }
+        };
+        let tech = {
+            tracing::debug!("mediainfo path: radarr='{}' local='{}'", raw_path.as_deref().unwrap_or("<none>"), local_path.as_ref().unwrap().display());
+            core::media::mediainfo::collect_technical_info_with_cache(
+                local_path.as_ref().unwrap().to_string_lossy().as_ref(),
+                config.media.enable_mediainfo_cache,
+            )
         };
 
         // Fallback: derive resolution from Radarr quality if MediaInfo didn't provide it
@@ -112,6 +145,14 @@ async fn main() {
             decision.chosen,
             decision.reason
         );
+
+        // Step 3. Create seed symlink structure if configured
+        if let Some(seed_root) = &config.media.seed_path {
+            let src_video = local_path.as_ref().unwrap();
+            if let Err(e) = core::fs::export_seed_structure(PathBuf::from(seed_root).as_path(), &decision.chosen, src_video.as_path()) {
+                tracing::error!("Failed to export seed structure for '{}': {}", decision.chosen, e);
+            }
+        }
     }
 
 }

@@ -1,7 +1,10 @@
+use std::fs;
+use std::path::Path;
 use std::process::Command;
+use std::time::SystemTime;
 
 use serde_json::Value;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::core::naming::TechnicalInfo;
 
@@ -32,6 +35,7 @@ fn map_audio_codec(format: &str) -> Option<String> {
         Some("AC3".to_string())
     } else if f.contains("dts") { Some("DTS".to_string()) }
     else if f.contains("aac") { Some("AAC".to_string()) }
+    else if f.contains("mpeg") { Some("MPEG".to_string()) }
     else { Some(format.to_string()) }
 }
 
@@ -45,26 +49,81 @@ fn map_channels(ch: i64) -> Option<String> {
     }
 }
 
-pub fn collect_technical_info(path: &str) -> TechnicalInfo {
-    info!(target: "ghostseed::mediainfo", path = %path, "Collecting technical info");
-    let output = Command::new("mediainfo")
-        .arg("--Output=JSON")
-        .arg(path)
-        .output();
+fn run_mediainfo_json(path: &str) -> Option<Vec<u8>> {
+    let output = Command::new("mediainfo").arg("--Output=JSON").arg(path).output();
+    let Ok(out) = output else { return None; };
+    if !out.status.success() { return None; }
+    Some(out.stdout)
+}
+
+fn run_mediainfo_text(path: &str) -> Option<String> {
+    let output = Command::new("mediainfo").arg("--Output=Text").arg(path).output();
+    let Ok(out) = output else { return None; };
+    if !out.status.success() { return None; }
+    String::from_utf8(out.stdout).ok()
+}
+
+fn get_modified_time(path: &Path) -> Option<SystemTime> {
+    fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+fn ensure_cache_and_load_json(video_path: &str, enable_cache: bool) -> Option<Value> {
+    if !enable_cache {
+        return run_mediainfo_json(video_path).and_then(|b| serde_json::from_slice(&b).ok());
+    }
+
+    let vpath = Path::new(video_path);
+    let parent = vpath.parent().unwrap_or_else(|| Path::new("."));
+    let json_path = parent.join("mediainfo.json");
+    let nfo_path = parent.join("mediainfo.nfo");
+
+    let v_mtime = get_modified_time(vpath);
+    let j_mtime = get_modified_time(&json_path);
+    let n_mtime = get_modified_time(&nfo_path);
+
+    let need_refresh = match (v_mtime, j_mtime) {
+        (Some(vm), Some(jm)) => jm < vm,
+        (Some(_), None) => true,
+        _ => false,
+    };
+
+    if need_refresh {
+        debug!(target: "ghostseed::mediainfo", path = %video_path, "Refreshing mediainfo cache files");
+        if let Some(text) = run_mediainfo_text(video_path) {
+            let _ = fs::write(&nfo_path, text);
+        }
+        if let Some(bytes) = run_mediainfo_json(video_path) {
+            let _ = fs::write(&json_path, &bytes);
+            return serde_json::from_slice(&bytes).ok();
+        }
+        return None;
+    }
+
+    // Cache up-to-date: if json exists, read it; else if only nfo exists, generate json now
+    if json_path.exists() {
+        if let Ok(bytes) = fs::read(&json_path) { return serde_json::from_slice(&bytes).ok(); }
+        return None;
+    }
+    // No json; if we have nfo and it's not older than video, produce json now
+    if let (Some(vm), Some(nm)) = (v_mtime, n_mtime) {
+        if nm >= vm {
+            if let Some(bytes) = run_mediainfo_json(video_path) {
+                let _ = fs::write(&json_path, &bytes);
+                return serde_json::from_slice(&bytes).ok();
+            }
+        }
+    }
+    None
+}
+
+pub fn collect_technical_info_with_cache(path: &str, enable_cache: bool) -> TechnicalInfo {
+    info!(target: "ghostseed::mediainfo", path = %path, cache = enable_cache, "Collecting technical info");
+    let json_opt = ensure_cache_and_load_json(path, enable_cache);
 
     let mut info = TechnicalInfo::default();
 
-    let Ok(out) = output else {
-        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to spawn mediainfo; is it installed?");
-        return info;
-    };
-    if !out.status.success() {
-        warn!(target: "ghostseed::mediainfo", path = %path, status = ?out.status, "mediainfo exited with non-zero status");
-        return info;
-    }
-
-    let Ok(json): Result<Value, _> = serde_json::from_slice(&out.stdout) else {
-        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to parse mediainfo JSON output");
+    let Some(json) = json_opt else {
+        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to get mediainfo JSON (cache disabled or command failed)");
         return info;
     };
     let tracks = json
@@ -148,4 +207,14 @@ pub fn collect_technical_info(path: &str) -> TechnicalInfo {
 
     info!(target: "ghostseed::mediainfo", path = %path, res = ?info.resolution, vcodec = ?info.video_codec, bitdepth = ?info.bit_depth, hdr = info.hdr, dv = info.dv, acodec = ?info.audio_codec, ach = ?info.audio_channels, alangs = ?info.audio_languages, slangs = ?info.subtitle_languages, vfi = info.has_vfi, "Collected technical info summary");
     info
+}
+
+/// Ensure a textual mediainfo is written to the provided output path.
+/// Returns true on success.
+pub fn write_text_nfo(video_path: &str, out_path: &Path) -> bool {
+    if let Some(text) = run_mediainfo_text(video_path) {
+        if let Some(parent) = out_path.parent() { let _ = fs::create_dir_all(parent); }
+        return fs::write(out_path, text).is_ok();
+    }
+    false
 }

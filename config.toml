@@ -4,6 +4,8 @@ enable_reqwest_logging = false
 
 [media]
 use_original_title = true
+enable_mediainfo_cache = true
+seed_path = "/mnt/nas/medias/seed"
 
 [[radarr.path_mappings]]
 radarr_root = "/data/library/movies"

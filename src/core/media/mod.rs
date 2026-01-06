@@ -18,4 +18,13 @@ pub fn translate_radarr_path<'a>(radarr_path: &'a str, config: &'a crate::config
 	}
 }
 
+/// Try to translate a Radarr path strictly; return None if no mapping applies.
+pub fn try_translate_radarr_path(radarr_path: &str, config: &crate::config::Config) -> Option<PathBuf> {
+    let maps = &config.radarr.path_mappings;
+    if maps.is_empty() {
+        return None;
+    }
+    crate::utils::pathmap::translate_radarr_path(radarr_path, maps).map(PathBuf::from)
+}
+
 // removed legacy single mapping helper; using radarr.path_mappings instead

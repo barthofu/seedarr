@@ -40,6 +40,10 @@ pub struct Config {
 #[allow(unused)]
 pub struct MediaConfig {
     pub use_original_title: bool,
+    #[serde(default)]
+    pub enable_mediainfo_cache: bool,
+    #[serde(default)]
+    pub seed_path: Option<String>,
 }
 
 // ===============================================================================

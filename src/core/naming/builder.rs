@@ -6,7 +6,7 @@ fn normalize_tokens_to_scene<S: AsRef<str>>(s: S) -> String {
     let mut out = String::with_capacity(s.as_ref().len());
     let mut last_dot = false;
     for ch in s.as_ref().chars() {
-        let is_sep = ch.is_whitespace() || matches!(ch, ':' | ';' | ',' | '/' | '\\' | '|' | '!' | '?' | '\'' | '"' | '&');
+        let is_sep = ch.is_whitespace() || matches!(ch, ':' | ';' | ',' | '/' | '\\' | '|' | '!' | '?' | '\'' | '"' | '&' | '-' | '(' | ')' | '[' | ']' | '{' | '}');
         let is_dot = ch == '.' || is_sep;
         if is_dot {
             if !last_dot { out.push('.'); last_dot = true; }
