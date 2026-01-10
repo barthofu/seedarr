@@ -28,6 +28,7 @@ pub struct Config {
     // pub general: GeneralConfig,
     pub logs: LogsConfig,
     pub media: MediaConfig,
+    pub torrent: TorrentConfig,
     pub radarr: RadarrConfig,
     pub paths: Option<PathsConfig>,
 }
@@ -45,6 +46,28 @@ pub struct MediaConfig {
     #[serde(default)]
     pub seed_path: Option<String>,
 }
+
+// ===============================================================================
+// Torrent
+// ===============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct TorrentConfig {
+    /// Announce URL for trackers (optional). If None, no announce is added.
+    pub announce_url: Option<String>,
+    /// Whether to mark the torrent as private.
+    #[serde(default = "default_true")]
+    pub private: bool,
+    /// Optional directory to write .torrent files. If None, use the seed scene dir.
+    #[serde(default)]
+    pub output_dir: Option<String>,
+    /// Dry run: only create symlinks, skip torrent creation.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+fn default_true() -> bool { true }
 
 // ===============================================================================
 // Logs

@@ -1,20 +1,26 @@
 [logs]
-level = "debug" # Options: "error", "warn", "info", "debug", "trace"
+level = "info" # Options: "error", "warn", "info", "debug", "trace"
 enable_reqwest_logging = false
 
 [media]
 use_original_title = true
 enable_mediainfo_cache = true
-seed_path = "/mnt/nas/medias/seed"
+seed_path = "/mnt/nas/medias/plex/library/.seedarr"
+
+[torrent]
+announce_url = "https://tracker.bartho.dev/announce/N4iuXcA29S7wmg07yXsa5vQYRWiyAl0n"
+private = true
+output_dir = "/mnt/nas/torrents/.seedarr"
+dry_run = true
 
 [[radarr.path_mappings]]
 radarr_root = "/data/library/movies"
 local_root = "/mnt/nas/medias/plex/library/movies"
 
-[[radarr.path_mappings]]
-radarr_root = "/data/library/animation"
-local_root = "/mnt/nas/medias/plex/library/animation"
+# [[radarr.path_mappings]]
+# radarr_root = "/data/library/animation"
+# local_root = "/mnt/nas/medias/plex/library/animation"
 
-[[radarr.path_mappings]]
-radarr_root = "/data/library/documentaries"
-local_root = "/mnt/nas/medias/plex/library/documentaries"
+# [[radarr.path_mappings]]
+# radarr_root = "/data/library/documentaries"
+# local_root = "/mnt/nas/medias/plex/library/documentaries"

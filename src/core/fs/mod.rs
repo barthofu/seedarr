@@ -14,7 +14,11 @@ pub fn export_seed_structure(seed_root: &Path, scene_name: &str, src_video: &Pat
     // Symlink the video file as <scene>.<ext>
     let ext = src_video.extension().and_then(|s| s.to_str()).unwrap_or("mkv");
     let dest_video = seed_dir.join(format!("{}.{}", scene_name, ext));
-    if dest_video.exists() { let _ = std::fs::remove_file(&dest_video); }
+    // Idempotency: if video link already exists, skip entire export
+    if dest_video.exists() {
+        debug!("Seed export already exists: '{}'", dest_video.display());
+        return Ok(());
+    }
 
     #[cfg(target_family = "unix")]
     {
@@ -36,7 +40,8 @@ pub fn export_seed_structure(seed_root: &Path, scene_name: &str, src_video: &Pat
 
     // NFO: prefer symlink of existing source mediainfo.nfo; else write textual mediainfo
     let dest_nfo = seed_dir.join(format!("{}.nfo", scene_name));
-    if dest_nfo.exists() { let _ = std::fs::remove_file(&dest_nfo); }
+    // If NFO exists already, keep it
+    if dest_nfo.exists() { return Ok(()); }
     let src_nfo = src_video.parent().unwrap_or(Path::new(".")).join("mediainfo.nfo");
     if src_nfo.exists() {
         #[cfg(target_family = "unix")]

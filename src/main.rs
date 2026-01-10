@@ -49,12 +49,10 @@ async fn main() {
     };
 
     let result = radarr::apis::movie_api::list_movie(&radarr_config, None, None, None).await;
-    // TODO: remove temporary 50 first movies limit
     let movies = result
         .unwrap()
         .into_iter()
         .filter(|m| m.movie_file.as_ref().is_some())
-        .take(50)
         .collect::<Vec<_>>();
 
     // Step 2. Validate or propose scene names
@@ -151,6 +149,15 @@ async fn main() {
             let src_video = local_path.as_ref().unwrap();
             if let Err(e) = core::fs::export_seed_structure(PathBuf::from(seed_root).as_path(), &decision.chosen, src_video.as_path()) {
                 tracing::error!("Failed to export seed structure for '{}': {}", decision.chosen, e);
+            }
+            // Step 4. Create .torrent for the seeded scene directory via intermodal (unless dry_run)
+            if !config.torrent.dry_run {
+                let seed_dir = PathBuf::from(seed_root).join(&decision.chosen);
+                if let Err(e) = core::torrent::create_torrent_for_seed_dir(seed_dir.as_path(), &decision.chosen, &config) {
+                    tracing::error!("Failed to create torrent for '{}': {}", decision.chosen, e);
+                }
+            } else {
+                tracing::info!("Dry-run enabled: skipping torrent creation for '{}'", decision.chosen);
             }
         }
     }
