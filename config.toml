@@ -6,6 +6,7 @@ enable_reqwest_logging = false
 use_original_title = true
 enable_mediainfo_cache = true
 seed_path = "/mnt/nas/medias/plex/library/.seedarr"
+append_no_tag_on_missing_group = true
 
 [torrent]
 announce_url = "https://tracker.bartho.dev/announce/N4iuXcA29S7wmg07yXsa5vQYRWiyAl0n"

@@ -45,6 +45,9 @@ pub struct MediaConfig {
     pub enable_mediainfo_cache: bool,
     #[serde(default)]
     pub seed_path: Option<String>,
+    /// When true, append "-NoTag" to scene name if release group is missing
+    #[serde(default)]
+    pub append_no_tag_on_missing_group: bool,
 }
 
 // ===============================================================================

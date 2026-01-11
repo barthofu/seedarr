@@ -130,6 +130,11 @@ async fn main() {
             &tech,
             Some(&validation),
         );
+        // Optionally append "-NoTag" if no release group and config requests it
+        let mut final_scene_name = decision.chosen.clone();
+        if config.media.append_no_tag_on_missing_group && release_group.is_none() {
+            final_scene_name.push_str("-NoTag");
+        }
 
         println!("Title: {} | Year: {:?}", title, hints.year);
         println!("  Path: {}", raw_path.as_deref().unwrap_or("<none>"));
@@ -140,24 +145,24 @@ async fn main() {
         println!(
             "  Original: {}\n  Proposed: {}\n  Reason: {:?}\n",
             scene_name,
-            decision.chosen,
+            final_scene_name,
             decision.reason
         );
 
         // Step 3. Create seed symlink structure if configured
         if let Some(seed_root) = &config.media.seed_path {
             let src_video = local_path.as_ref().unwrap();
-            if let Err(e) = core::fs::export_seed_structure(PathBuf::from(seed_root).as_path(), &decision.chosen, src_video.as_path()) {
+            if let Err(e) = core::fs::export_seed_structure(PathBuf::from(seed_root).as_path(), &final_scene_name, src_video.as_path()) {
                 tracing::error!("Failed to export seed structure for '{}': {}", decision.chosen, e);
             }
             // Step 4. Create .torrent for the seeded scene directory via intermodal (unless dry_run)
             if !config.torrent.dry_run {
-                let seed_dir = PathBuf::from(seed_root).join(&decision.chosen);
-                if let Err(e) = core::torrent::create_torrent_for_seed_dir(seed_dir.as_path(), &decision.chosen, &config) {
+                let seed_dir = PathBuf::from(seed_root).join(&final_scene_name);
+                if let Err(e) = core::torrent::create_torrent_for_seed_dir(seed_dir.as_path(), &final_scene_name, &config) {
                     tracing::error!("Failed to create torrent for '{}': {}", decision.chosen, e);
                 }
             } else {
-                tracing::info!("Dry-run enabled: skipping torrent creation for '{}'", decision.chosen);
+                tracing::info!("Dry-run enabled: skipping torrent creation for '{}'", final_scene_name);
             }
         }
     }
