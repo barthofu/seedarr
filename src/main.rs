@@ -60,10 +60,28 @@ async fn main() {
         let scene_name = movie.movie_file.as_deref()
             .and_then(|mf| mf.scene_name.clone().flatten())
             .unwrap_or_else(|| "Unknown".to_string());
-        let title: String = if config.media.use_original_title {
-            movie.original_title.flatten().unwrap_or_else(|| "Unknown".to_string())
+        // Title selection
+        let original_title = movie.original_title.flatten().unwrap_or_else(|| "Unknown".to_string());
+        let local_title = movie.title.flatten().unwrap_or_else(|| "Unknown".to_string());
+        let title: String = if let Some(strategy) = &config.media.title_strategy {
+            match strategy {
+                crate::config::TitleStrategy::OriginalIfEnElseLocal => {
+                    // Prefer Radarr movie.original_language when available as string code
+                    let is_en = movie
+                        .original_language
+                        .as_deref()
+                        .and_then(|ol| ol.name.clone().flatten())
+                        .map(|l| {
+                            let ll = l.to_ascii_lowercase();
+                            ll.starts_with("en") || ll.contains("english")
+                        })
+                        .unwrap_or(false);
+                    if is_en { original_title } else { local_title }
+                }
+                crate::config::TitleStrategy::AlwaysLocal => local_title,
+            }
         } else {
-            movie.title.flatten().unwrap_or_else(|| "Unknown".to_string())
+            if config.media.use_original_title { original_title } else { local_title }
         };
         // let path: Option<String> = movie.movie_file.as_deref()
         //     .and_then(|mf| mf.path.clone().flatten());

@@ -12,6 +12,7 @@ Seedarr is a Rust-based automation tool to publish existing media libraries (fil
 - Torrent generation via Intermodal (`imdl`), configurable announce + private
 - Idempotent operations: skip if symlinks or `.torrent` already exist
 - Dry-run mode: create symlinks only, skip torrent creation
+ - Title strategy: `original_if_en_else_local` or `always_local`
 
 ## Requirements
 
@@ -30,9 +31,10 @@ level = "debug"
 enable_reqwest_logging = false
 
 [media]
-use_original_title = true
+use_original_title = true # deprecated by title_strategy
 enable_mediainfo_cache = true
 seed_path = "/data/medias/seed" # symlink export root
+title_strategy = "original_if_en_else_local" # or "always_local"
 
 [torrent]
 announce_url = "https://tracker.example/announce/XYZ" # optional
@@ -65,6 +67,7 @@ Seedarr will:
 ## Scene Naming Rules (current)
 
 - Always rebuilt from Radarr hints + MediaInfo (original names ignored)
+- Title: `original_if_en_else_local` picks `original_title` when original language is English, otherwise the localized `title`; `always_local` always uses `title`.
 - Title sanitization: spaces, hyphens, brackets → dots; collapse multiple separators
 - Language tag:
 	- `MULTi.VF` when multiple audio languages

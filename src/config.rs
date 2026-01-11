@@ -48,6 +48,18 @@ pub struct MediaConfig {
     /// When true, append "-NoTag" to scene name if release group is missing
     #[serde(default)]
     pub append_no_tag_on_missing_group: bool,
+    /// Title selection strategy (if set, overrides `use_original_title`)
+    #[serde(default)]
+    pub title_strategy: Option<TitleStrategy>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TitleStrategy {
+    /// Use original_title if original_language is English; otherwise use localized title
+    OriginalIfEnElseLocal,
+    /// Always use the localized title
+    AlwaysLocal,
 }
 
 // ===============================================================================
