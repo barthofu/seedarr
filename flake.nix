@@ -30,6 +30,7 @@
             inkscape
             pkgs-master.yt-dlp
             mediainfo
+            intermodal
 
             glibcLocales
           ];

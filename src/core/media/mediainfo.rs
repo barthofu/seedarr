@@ -45,6 +45,10 @@ fn map_video_codec(format: &str) -> Option<String> {
     let f = format.to_ascii_lowercase();
     if f.contains("x265") || f.contains("hevc") || f.contains("h265") || f.contains("h.265") { Some("x265".to_string()) }
     else if f.contains("x264") || f.contains("avc") || f.contains("h264") || f.contains("h.264") { Some("x264".to_string()) }
+    // Hide legacy generic MPEG video tags from the scene name
+    else if f.contains("mpeg-4 visual") || (f.contains("mpeg") && f.contains("video")) {
+        None
+    }
     else { Some(format.to_string()) }
 }
 
@@ -57,6 +61,9 @@ fn map_audio_codec(format: &str) -> Option<String> {
     } else if f.contains("dts") { Some("DTS".to_string()) }
     else if f.contains("aac") { Some("AAC".to_string()) }
     else if f.contains("mpeg") { Some("MPEG".to_string()) }
+    else if f.contains("mpeg-4 visual") { Some("MPEG".to_string()) }
+    else if f.contains("mpeg video") { Some("MPEG".to_string()) }
+    else if f.contains("mlp fba") { None }
     else { Some(format.to_string()) }
 }
 

@@ -38,6 +38,11 @@ fn language_tag(tech: &TechnicalInfo) -> Option<String> {
     else { None }
 }
 
+fn sanitize_release_group<S: AsRef<str>>(s: S) -> String {
+    // Remove spaces and any non-alphanumeric characters
+    s.as_ref().chars().filter(|c| c.is_ascii_alphanumeric()).collect()
+}
+
 fn infer_resolution_from_quality(q: &Option<String>) -> Option<String> {
     if let Some(qs) = q {
         let ql = qs.to_ascii_lowercase();
@@ -94,8 +99,10 @@ fn build_parts_from(hints: &RadarrHints, tech: &TechnicalInfo) -> SceneNameParts
     // VFI: keep MULTi if present; add VFI as extra tag
     if tech.has_vfi { parts.extra_tags.insert("VFI".to_string()); }
 
-    // Release group from Radarr
-    parts.release_group = hints.release_group.clone();
+    // Release group from Radarr, sanitized (no spaces, no special chars)
+    parts.release_group = hints.release_group.as_ref()
+        .map(|g| sanitize_release_group(g))
+        .filter(|g| !g.is_empty());
 
     parts
 }
@@ -188,9 +195,22 @@ pub fn propose_scene_name(original: Option<&str>, hints: &RadarrHints, tech: &Te
     let mut parts = build_parts_from(hints, tech);
     // Salvage special tags from original scene name (case-insensitive)
     for t in salvage_special_tags(original) { parts.extra_tags.insert(t); }
-    let rebuilt = assemble(&parts);
+    let rebuilt = sanitize_scene_name(&assemble(&parts));
 
     let reason = if let Some(v) = validation { DecisionReason::Rebuilt { issues: v.issues.clone() } } else { DecisionReason::Rebuilt { issues: vec![] } };
 
     SceneDecision { chosen: rebuilt, reason }
+}
+
+fn sanitize_scene_name<S: AsRef<str>>(s: S) -> String {
+    // Remove only atypical special symbols (e.g., copyright/trademark) and control chars.
+    // Preserve letters/digits from any language, dots and hyphens.
+    const BLACKLIST: [char; 12] = ['©', '®', '™', '℗', '§', '¶', '•', '†', '‡', '°', 'º', 'ª'];
+    s.as_ref().chars()
+        .filter(|c| {
+            if c.is_control() { return false; }
+            if BLACKLIST.contains(c) { return false; }
+            true
+        })
+        .collect()
 }

@@ -13,7 +13,7 @@ title_strategy = "original_if_en_else_local" # or "always_local"
 announce_url = "https://tracker.bartho.dev/announce/N4iuXcA29S7wmg07yXsa5vQYRWiyAl0n"
 private = true
 output_dir = "/mnt/nas/torrents/.seedarr"
-dry_run = true
+dry_run = false
 
 [[radarr.path_mappings]]
 radarr_root = "/data/library/movies"

@@ -15,7 +15,9 @@ pub fn create_torrent_for_seed_dir(seed_dir: &Path, scene_name: &str, config: &c
     }
 
     let mut cmd = Command::new("imdl");
-    cmd.arg("torrent").arg("create")
+    cmd
+        .arg("torrent")
+        .arg("create")
         .arg("--follow-symlinks");
 
     if config.torrent.private { cmd.arg("--private"); }
