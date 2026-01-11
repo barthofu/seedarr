@@ -19,6 +19,27 @@ fn parse_int_from_value(v: &Value) -> Option<i64> {
     }
 }
 
+fn classify_resolution(width: Option<i64>, height: Option<i64>) -> Option<String> {
+    // Heuristic with tolerance to handle common crop/encode variations.
+    // Uses either dimension to qualify a bucket; width thresholds are slightly lower
+    // to accommodate cropped widths like 1915, 1904, etc. that are conventionally 1080p.
+    let w_ok = |t: i64| width.map(|w| w >= t).unwrap_or(false);
+    let h_ok = |t: i64| height.map(|h| h >= t).unwrap_or(false);
+
+    let res = if h_ok(2000) || w_ok(3600) {
+        "2160p"
+    } else if h_ok(1320) || w_ok(2400) {
+        "1440p"
+    } else if h_ok(900) || w_ok(1850) {
+        "1080p"
+    } else if h_ok(650) || w_ok(1180) {
+        "720p"
+    } else {
+        "480p"
+    };
+    Some(res.to_string())
+}
+
 fn map_video_codec(format: &str) -> Option<String> {
     // Canonicalize to encoder-style tokens: x265/x264
     let f = format.to_ascii_lowercase();
@@ -134,18 +155,10 @@ pub fn collect_technical_info_with_cache(path: &str, enable_cache: bool) -> Tech
         let ttype = track.get("@type").and_then(|v| v.as_str()).unwrap_or("");
         match ttype {
             "Video" => {
-                // Resolution from Width preferred (convert width -> common p)
-                if let Some(w) = track.get("Width") { if let Some(wn) = parse_int_from_value(w) {
-                    let res = if wn >= 3800 { "2160p" } else if wn >= 2500 { "1440p" } else if wn >= 1900 { "1080p" } else if wn >= 1200 { "720p" } else { "480p" };
-                    info.resolution = Some(res.to_string());
-                }}
-                // Fallback to Height if Width unavailable
-                if info.resolution.is_none() {
-                    if let Some(h) = track.get("Height") { if let Some(hn) = parse_int_from_value(h) {
-                        let res = if hn >= 2160 { "2160p" } else if hn >= 1440 { "1440p" } else if hn >= 1080 { "1080p" } else if hn >= 720 { "720p" } else { "480p" };
-                        info.resolution = Some(res.to_string());
-                    }}
-                }
+                // Resolution: combine width + height with tolerant thresholds
+                let width = track.get("Width").and_then(parse_int_from_value);
+                let height = track.get("Height").and_then(parse_int_from_value);
+                info.resolution = classify_resolution(width, height);
                 // Video codec
                 if let Some(fmt) = track.get("Format").and_then(|v| v.as_str()) {
                     info.video_codec = map_video_codec(fmt);
