@@ -5,13 +5,13 @@ impl Config {
     pub fn init() -> Result<Self, config::ConfigError> {
         // get config toml dir from env, with default
         let config_path =
-            std::env::var("GHOSTSEED_CONFIG_PATH").unwrap_or_else(|_| String::from("./config.toml"));
+            std::env::var("SEEDARR_CONFIG_PATH").unwrap_or_else(|_| String::from("./config.toml"));
 
         let config = config::Config::builder()
             // Add in config toml
             .add_source(config::File::with_name(&config_path))
-            // Add in settings from the environment (with a prefix of GHOSTSEED)
-            .add_source(config::Environment::with_prefix("GHOSTSEED").separator("__"))
+            // Add in settings from the environment (with a prefix of SEEDARR)
+            .add_source(config::Environment::with_prefix("SEEDARR").separator("__"))
             .build()?;
 
         config.try_deserialize()

@@ -1,8 +1,8 @@
-# GhostSeed — Project Specifications
+# Seedarr — Project Specifications
 
 ## Overview
 
-**GhostSeed** is a Rust-based automation tool designed to publish existing multimedia libraries
+**Seedarr** is a Rust-based automation tool designed to publish existing multimedia libraries
 (Films and TV Series) to the BitTorrent network **without duplicating data**, primarily via **DHT**.
 
 It leverages existing media managers (Radarr / Sonarr), technical media analysis, and configurable
@@ -74,7 +74,7 @@ MediaInfo data always takes precedence over manager metadata.
 
 ## Naming Engine (Core Component)
 
-The naming engine is the heart of GhostSeed.
+The naming engine is the heart of Seedarr.
 
 ### Objectives
 
@@ -99,7 +99,7 @@ Example template:
 
 ## Symlink Strategy
 
-- GhostSeed never moves or copies media files
+- Seedarr never moves or copies media files
 - A dedicated export directory is created
 - Symlinks point to the original Radarr/Sonarr-managed files
 - Enables:
@@ -162,7 +162,7 @@ A dedicated TV-series naming and packaging logic is required.
 
 ## Extensibility: Private Trackers (Future)
 
-GhostSeed is architected to support private trackers later without refactoring.
+Seedarr is architected to support private trackers later without refactoring.
 
 ### Publisher Abstraction
 
@@ -227,7 +227,7 @@ features:
 
 ## Summary
 
-GhostSeed aims to be a **clean, reproducible, and extensible BitTorrent publishing tool**.
+Seedarr aims to be a **clean, reproducible, and extensible BitTorrent publishing tool**.
 
 It focuses on:
 - correctness over convenience

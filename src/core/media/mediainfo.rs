@@ -116,7 +116,7 @@ fn ensure_cache_and_load_json(video_path: &str, enable_cache: bool) -> Option<Va
     };
 
     if need_refresh {
-        debug!(target: "ghostseed::mediainfo", path = %video_path, "Refreshing mediainfo cache files");
+        debug!(target: "seedarr::mediainfo", path = %video_path, "Refreshing mediainfo cache files");
         if let Some(text) = run_mediainfo_text(video_path) {
             let _ = fs::write(&nfo_path, text);
         }
@@ -145,13 +145,13 @@ fn ensure_cache_and_load_json(video_path: &str, enable_cache: bool) -> Option<Va
 }
 
 pub fn collect_technical_info_with_cache(path: &str, enable_cache: bool) -> TechnicalInfo {
-    info!(target: "ghostseed::mediainfo", path = %path, cache = enable_cache, "Collecting technical info");
+    info!(target: "seedarr::mediainfo", path = %path, cache = enable_cache, "Collecting technical info");
     let json_opt = ensure_cache_and_load_json(path, enable_cache);
 
     let mut info = TechnicalInfo::default();
 
     let Some(json) = json_opt else {
-        warn!(target: "ghostseed::mediainfo", path = %path, "Failed to get mediainfo JSON (cache disabled or command failed)");
+        warn!(target: "seedarr::mediainfo", path = %path, "Failed to get mediainfo JSON (cache disabled or command failed)");
         return info;
     };
     let tracks = json
@@ -225,7 +225,7 @@ pub fn collect_technical_info_with_cache(path: &str, enable_cache: bool) -> Tech
         }
     }
 
-    info!(target: "ghostseed::mediainfo", path = %path, res = ?info.resolution, vcodec = ?info.video_codec, bitdepth = ?info.bit_depth, hdr = info.hdr, dv = info.dv, acodec = ?info.audio_codec, ach = ?info.audio_channels, alangs = ?info.audio_languages, slangs = ?info.subtitle_languages, vfi = info.has_vfi, "Collected technical info summary");
+    info!(target: "seedarr::mediainfo", path = %path, res = ?info.resolution, vcodec = ?info.video_codec, bitdepth = ?info.bit_depth, hdr = info.hdr, dv = info.dv, acodec = ?info.audio_codec, ach = ?info.audio_channels, alangs = ?info.audio_languages, slangs = ?info.subtitle_languages, vfi = info.has_vfi, "Collected technical info summary");
     info
 }
 

@@ -1,5 +1,5 @@
 [package]
-name = "ghostseed"
+name = "seedarr"
 description = "WIP"
 version = "0.0.1"
 authors = ["Bartholomé Gili <dev.bartho@gmail.com>"]

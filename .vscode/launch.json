@@ -14,7 +14,7 @@
                     "build"
                 ],
                 "filter": {
-                    "name": "ghostseed",
+                    "name": "seedarr",
                     "kind": "bin"
                 }
             },
