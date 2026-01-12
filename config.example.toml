@@ -1,0 +1,43 @@
+# Seedarr / GhostSeed example configuration
+
+[logs]
+# Options: "error", "warn", "info", "debug", "trace"
+level = "info"
+enable_reqwest_logging = false
+
+[media]
+# Cache mediainfo JSON/NFO next to source files
+enable_mediainfo_cache = true
+# Root directory where seed scene folders are created
+seed_path = "path/to/your/seed/folder"
+# Append "-NoTag" when no release group is found
+append_no_tag_on_missing_group = true
+# Choose title selection strategy: 
+# - "prefer_english_original" (default)
+# - "always_local"
+title_strategy = "prefer_english_original"
+
+[torrent]
+# Optional tracker announce URL (omit to create DHT-only torrents)
+announce_url = "https://tracker.example.com/announce"
+# Mark torrents as private (recommended for tracker torrents)
+private = true
+# Directory to write .torrent files (defaults to the seed scene folder if omitted)
+output_dir = "path/to/your/torrent/files/folder"
+# When true, skip torrent creation (only create symlinks)
+dry_run = false
+
+[radarr]
+# Radarr API access (required)
+base_url = "http://localhost:7878"
+api_key = "YOUR_RADARR_API_KEY"
+
+# Map Radarr container paths to local filesystem paths
+[[radarr.path_mappings]]
+radarr_root = "/data/library/movies"
+local_root = "/mnt/media/movies"
+
+# Add more mappings as needed
+# [[radarr.path_mappings]]
+# radarr_root = "/data/library/series"
+# local_root = "/mnt/media/series"
