@@ -12,10 +12,10 @@ enable_mediainfo_cache = true
 seed_path = "path/to/your/seed/folder"
 # Append "-NoTag" when no release group is found
 append_no_tag_on_missing_group = true
-# Choose title selection strategy: 
-# - "prefer_english_original" (default)
+# Choose title selection strategy:
+# - "original_if_en_else_local"
 # - "always_local"
-title_strategy = "prefer_english_original"
+title_strategy = "original_if_en_else_local"
 
 [torrent]
 # Optional tracker announce URL (omit to create DHT-only torrents)
@@ -41,3 +41,18 @@ local_root = "/mnt/media/movies"
 # [[radarr.path_mappings]]
 # radarr_root = "/data/library/series"
 # local_root = "/mnt/media/series"
+
+# Optional upload to a private tracker.
+# [upload]
+# dry_run = true
+
+# [upload.torrust]
+# enable = true
+# api_base = "https://example-api.your-domain.tld/v1"
+# api_key = "YOUR_API_KEY"
+# movies_category = "movies"
+# series_category = "tv shows"
+# animes_category = "animes"
+# tags = []
+
+

@@ -1,4 +1,6 @@
 mod errors;
 pub mod pathmap;
 
-type SeedarrResult<T> = Result<T, errors::Error>;
+pub use errors::Error;
+
+type SeedarrResult<T> = Result<T, Error>;

@@ -30,7 +30,47 @@ pub struct Config {
     pub media: MediaConfig,
     pub torrent: TorrentConfig,
     pub radarr: RadarrConfig,
+    #[serde(default)]
+    pub upload: Option<UploadConfig>,
     pub paths: Option<PathsConfig>,
+}
+
+// ===============================================================================
+// Upload (private trackers)
+// ===============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct UploadConfig {
+    /// Dry run: skip upload calls (keeps torrent creation behavior unchanged)
+    #[serde(default)]
+    pub dry_run: bool,
+
+    /// Deprecated single-tracker selector (kept for backward compatibility).
+    /// Prefer enabling each tracker block via `[upload.<tracker>].enable = true`.
+    #[serde(default)]
+    pub tracker: Option<String>,
+
+    /// Tracker-specific configuration blocks
+    #[serde(default)]
+    pub torrust: Option<TorrustUploadConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct TorrustUploadConfig {
+    #[serde(default)]
+    pub enable: bool,
+    pub api_base: String,
+    pub api_key: String,
+    #[serde(default)]
+    pub movies_category: Option<String>,
+    #[serde(default)]
+    pub series_category: Option<String>,
+    #[serde(default)]
+    pub animes_category: Option<String>,
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
 }
 
 // ===============================================================================

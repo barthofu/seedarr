@@ -55,6 +55,15 @@ async fn main() {
         .filter(|m| m.movie_file.as_ref().is_some())
         .collect::<Vec<_>>();
 
+    // Optional: upload service (private tracker uploads). Keep main tracker-agnostic.
+    let upload_service = match core::upload::UploadService::from_config(&config) {
+        Ok(svc) => svc,
+        Err(e) => {
+            tracing::error!("Upload configuration error: {e}");
+            core::upload::UploadService::disabled()
+        }
+    };
+
     // Step 2. Validate or propose scene names
     for movie in movies {
         let scene_name = movie.movie_file.as_deref()
@@ -128,6 +137,18 @@ async fn main() {
             )
         };
 
+        // Optional: movie cover URL for upload descriptions (prefer images[*].remoteUrl, fallback to images[*].url, then remotePoster)
+        let cover_url: Option<String> = movie
+            .images
+            .as_ref()
+            .and_then(|v| v.as_ref())
+            .and_then(|imgs| {
+                imgs.iter().find_map(|img| {
+                    img.remote_url.clone().flatten().or_else(|| img.url.clone().flatten())
+                })
+            })
+            .or_else(|| movie.remote_poster.clone().flatten());
+
         // Fallback: derive resolution from Radarr quality if MediaInfo didn't provide it
         let mut tech = tech;
         if tech.resolution.is_none() {
@@ -176,8 +197,32 @@ async fn main() {
             // Step 4. Create .torrent for the seeded scene directory via intermodal (unless dry_run)
             if !config.torrent.dry_run {
                 let seed_dir = PathBuf::from(seed_root).join(&final_scene_name);
-                if let Err(e) = core::torrent::create_torrent_for_seed_dir(seed_dir.as_path(), &final_scene_name, &config) {
-                    tracing::error!("Failed to create torrent for '{}': {}", decision.chosen, e);
+                match core::torrent::create_torrent_for_seed_dir(seed_dir.as_path(), &final_scene_name, &config) {
+                    Ok(torrent_path) => {
+                        // Step 5. Upload torrent to a private tracker (optional)
+                        let overview = movie.overview.clone().flatten();
+                        if let Err(e) = upload_service
+                            .upload_movie_torrent(
+                                &title,
+                                hints.year,
+                                cover_url.as_deref(),
+                                overview.as_deref(),
+                                &final_scene_name,
+                                &tech,
+                                torrent_path,
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to upload torrent for '{}': {e}", final_scene_name);
+                        } else if upload_service.is_enabled() {
+                            tracing::info!("Uploaded torrent for '{}'", final_scene_name);
+                        } else {
+                            tracing::info!("Upload service disabled: skipping upload for '{}'", final_scene_name);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to create torrent for '{}': {}", decision.chosen, e);
+                    }
                 }
             } else {
                 tracing::info!("Dry-run enabled: skipping torrent creation for '{}'", final_scene_name);

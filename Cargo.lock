@@ -475,25 +475,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "seedarr"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "config",
- "dotenvy",
- "once_cell",
- "radarr",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "h2"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1561,6 +1542,25 @@ checksum = "cc1f0cbffaac4852523ce30d8bd3c5cdc873501d96ff467ca09b6767bb8cd5c0"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "seedarr"
+version = "0.0.1"
+dependencies = [
+ "async-trait",
+ "config",
+ "dotenvy",
+ "once_cell",
+ "radarr",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
