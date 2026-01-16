@@ -1,5 +1,8 @@
 # Seedarr / GhostSeed example configuration
 
+# When true, limit Radarr/Sonarr fetches to 10 items each.
+test_mode = false
+
 [logs]
 # Options: "error", "warn", "info", "debug", "trace"
 level = "info"
@@ -41,6 +44,24 @@ local_root = "/mnt/media/movies"
 # [[radarr.path_mappings]]
 # radarr_root = "/data/library/series"
 # local_root = "/mnt/media/series"
+
+# Optional Sonarr support (series/anime)
+#
+# Behavior:
+# - By default, only create season packs when a season is complete.
+# - Optionally, create an INTEGRALE pack when the entire show is complete.
+# - Optionally, create per-episode torrents for incomplete seasons.
+#
+# [sonarr]
+# base_url = "http://localhost:8989"
+# api_key  = "YOUR_SONARR_API_KEY"
+# only_complete_seasons = true
+# create_integrale_pack_if_complete = false
+# per_episode_for_incomplete_seasons = false
+#
+# [[sonarr.path_mappings]]
+# sonarr_root = "/data/library/tv"
+# local_root  = "/mnt/media/tv"
 
 # Optional upload to a private tracker.
 # [upload]

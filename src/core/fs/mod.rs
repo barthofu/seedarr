@@ -99,6 +99,103 @@ pub fn export_seed_structure(
     Ok(())
 }
 
+/// Export a seed directory containing multiple source files (season/integrale packs).
+///
+/// Layout:
+/// <seed_root>/<pack_name>/<basename1>
+/// <seed_root>/<pack_name>/<basename2>
+/// <seed_root>/<pack_name>/<pack_name>.nfo
+pub fn export_seed_pack_structure(
+    seed_root: &Path,
+    pack_name: &str,
+    src_videos: &[std::path::PathBuf],
+) -> std::io::Result<()> {
+    let seed_dir = seed_root.join(pack_name);
+    std::fs::create_dir_all(&seed_dir)?;
+
+    for src_video in src_videos {
+        let Some(file_name) = src_video.file_name() else {
+            continue;
+        };
+        let dest_video = seed_dir.join(file_name);
+        if dest_video.exists() {
+            continue;
+        }
+
+        #[cfg(target_family = "unix")]
+        {
+            let target =
+                relative_target(&seed_dir, src_video).unwrap_or_else(|| src_video.to_path_buf());
+            debug!(
+                "Symlinking pack file: '{}' -> '{}'",
+                target.display(),
+                dest_video.display()
+            );
+            if let Err(e) = unix_fs::symlink(&target, &dest_video) {
+                error!(
+                    "Failed to symlink pack file '{}': {}",
+                    dest_video.display(),
+                    e
+                );
+            }
+        }
+        #[cfg(not(target_family = "unix"))]
+        {
+            if let Err(e) = std::fs::hard_link(src_video, &dest_video) {
+                warn!(
+                    "Hard-link failed ({}), copying instead: '{}'",
+                    e,
+                    dest_video.display()
+                );
+                let _ = std::fs::copy(src_video, &dest_video);
+            }
+        }
+    }
+
+    // Pack-level NFO: derive from first file.
+    let dest_nfo = seed_dir.join(format!("{}.nfo", pack_name));
+    if dest_nfo.exists() {
+        return Ok(());
+    }
+    if let Some(first) = src_videos.first() {
+        let src_nfo = first
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("mediainfo.nfo");
+        if src_nfo.exists() {
+            #[cfg(target_family = "unix")]
+            {
+                let nfo_target =
+                    relative_target(&seed_dir, &src_nfo).unwrap_or_else(|| src_nfo.to_path_buf());
+                if let Err(e) = unix_fs::symlink(&nfo_target, &dest_nfo) {
+                    warn!(
+                        "Failed to symlink mediainfo.nfo ({}), generating new text NFO",
+                        e
+                    );
+                    let _ = crate::core::media::mediainfo::write_text_nfo(
+                        first.to_string_lossy().as_ref(),
+                        &dest_nfo,
+                    );
+                }
+            }
+            #[cfg(not(target_family = "unix"))]
+            {
+                if let Err(e) = std::fs::hard_link(&src_nfo, &dest_nfo) {
+                    warn!("Hard-link mediainfo.nfo failed ({}), copying instead", e);
+                    let _ = std::fs::copy(&src_nfo, &dest_nfo);
+                }
+            }
+        } else {
+            let _ = crate::core::media::mediainfo::write_text_nfo(
+                first.to_string_lossy().as_ref(),
+                &dest_nfo,
+            );
+        }
+    }
+
+    Ok(())
+}
+
 /// Compute a relative path from `from_dir` to `to_path` if they share a common ancestor.
 #[cfg(target_family = "unix")]
 fn relative_target(from_dir: &Path, to_path: &Path) -> Option<std::path::PathBuf> {

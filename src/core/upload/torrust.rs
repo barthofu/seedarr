@@ -6,12 +6,23 @@ use crate::utils::Error;
 
 use crate::config::TorrustUploadConfig;
 
-use super::{TrackerUploader, UploadRequest};
+use super::{ContentKind, TrackerUploader, UploadRequest};
 
-fn category_or_default(cfg: &TorrustUploadConfig) -> String {
-    cfg.movies_category
-        .clone()
-        .unwrap_or_else(|| "movies".to_string())
+fn category_for(cfg: &TorrustUploadConfig, kind: ContentKind) -> String {
+    match kind {
+        ContentKind::Movie => cfg
+            .movies_category
+            .clone()
+            .unwrap_or_else(|| "movies".to_string()),
+        ContentKind::Series => cfg
+            .series_category
+            .clone()
+            .unwrap_or_else(|| "series".to_string()),
+        ContentKind::Anime => cfg
+            .animes_category
+            .clone()
+            .unwrap_or_else(|| "anime".to_string()),
+    }
 }
 
 fn tags_json_or_default(cfg: &TorrustUploadConfig) -> String {
@@ -46,7 +57,7 @@ impl TrackerUploader for TorrustUploader {
         let title_for_logs = req.title.clone();
 
         let url = self.upload_url();
-        let category = category_or_default(&self.cfg);
+        let category = category_for(&self.cfg, req.kind);
         let tags_json = tags_json_or_default(&self.cfg);
 
         info!(target: "seedarr::upload", url = %url, title = %req.title, category = %category, "Uploading torrent to Torrust");

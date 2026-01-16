@@ -24,11 +24,16 @@ impl Config {
 #[derive(Debug, Clone, Deserialize)]
 #[allow(unused)]
 pub struct Config {
+    /// When true, limit the number of movies/series fetched (useful for testing).
+    #[serde(default)]
+    pub test_mode: bool,
     // pub general: GeneralConfig,
     pub logs: LogsConfig,
     pub media: MediaConfig,
     pub torrent: TorrentConfig,
     pub radarr: RadarrConfig,
+    #[serde(default)]
+    pub sonarr: Option<SonarrConfig>,
     #[serde(default)]
     pub upload: Option<UploadConfig>,
     pub paths: Option<PathsConfig>,
@@ -155,6 +160,40 @@ pub struct PathMap {
     /// Prefix as seen by Radarr (e.g. "/data/library/movies")
     pub radarr_root: String,
     /// Local absolute prefix (e.g. "/mnt/nas/medias/plex/library/movies")
+    pub local_root: String,
+}
+
+// ==============================================================================
+// Sonarr
+// ==============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct SonarrConfig {
+    pub base_url: String,
+    pub api_key: String,
+    #[serde(default)]
+    pub path_mappings: Vec<SonarrPathMap>,
+
+    /// Default behavior: only create season packs when a season is complete.
+    #[serde(default = "default_true")]
+    pub only_complete_seasons: bool,
+
+    /// When true, also create an "integrale" pack when the whole series is complete.
+    #[serde(default)]
+    pub create_integrale_pack_if_complete: bool,
+
+    /// When true, create per-episode torrents for seasons that are not complete.
+    #[serde(default)]
+    pub per_episode_for_incomplete_seasons: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(unused)]
+pub struct SonarrPathMap {
+    /// Prefix as seen by Sonarr (e.g. "/data/library/series")
+    pub sonarr_root: String,
+    /// Local absolute prefix (e.g. "/mnt/nas/medias/plex/library/series")
     pub local_root: String,
 }
 

@@ -33,4 +33,19 @@ pub fn try_translate_radarr_path(
     crate::utils::pathmap::translate_radarr_path(radarr_path, maps).map(PathBuf::from)
 }
 
+/// Try to translate a Sonarr path strictly; return None if no mapping applies.
+pub fn try_translate_sonarr_path(
+    sonarr_path: &str,
+    config: &crate::config::Config,
+) -> Option<PathBuf> {
+    let Some(sonarr) = &config.sonarr else {
+        return None;
+    };
+    let maps = &sonarr.path_mappings;
+    if maps.is_empty() {
+        return None;
+    }
+    crate::utils::pathmap::translate_sonarr_path(sonarr_path, maps).map(PathBuf::from)
+}
+
 // removed legacy single mapping helper; using radarr.path_mappings instead

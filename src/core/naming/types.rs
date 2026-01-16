@@ -20,6 +20,8 @@ pub struct ValidationResult {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SceneNameParts {
     pub title_tokens: Vec<String>,
+    /// Episode marker for series/anime releases (e.g. "S01E02" or "E012").
+    pub episode_tag: Option<String>,
     pub year: Option<u16>,
     pub resolution: Option<String>,
     pub source: Option<String>,
@@ -39,6 +41,29 @@ pub struct SceneNameParts {
 pub struct RadarrHints {
     pub title: String,
     pub year: Option<u16>,
+    pub quality: Option<String>,
+    pub release_group: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EpisodeHints {
+    pub series_title: String,
+    pub series_year: Option<u16>,
+    pub season_number: Option<u16>,
+    /// Episode numbers within the season (supports multi-episode files).
+    pub episode_numbers: Vec<u16>,
+    /// Absolute episode numbers (anime). If set, can be used for tagging.
+    pub absolute_episode_numbers: Vec<u16>,
+    pub quality: Option<String>,
+    pub release_group: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PackHints {
+    pub title: String,
+    pub year: Option<u16>,
+    /// Pack tag inserted after title/year (e.g. "S01" or "INTEGRALE").
+    pub pack_tag: String,
     pub quality: Option<String>,
     pub release_group: Option<String>,
 }

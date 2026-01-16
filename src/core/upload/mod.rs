@@ -8,11 +8,19 @@ use crate::utils::Error;
 
 use crate::core::naming::TechnicalInfo;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentKind {
+    Movie,
+    Series,
+    Anime,
+}
+
 #[derive(Debug, Clone)]
 pub struct UploadRequest {
     pub title: String,
     pub description_markdown: String,
     pub torrent_path: PathBuf,
+    pub kind: ContentKind,
 }
 
 #[async_trait]
@@ -101,11 +109,66 @@ impl UploadService {
             return Ok(());
         }
 
-        let md = description::build_markdown(title, year, cover_url, overview, scene_name, tech);
+        let md =
+            description::build_movie_markdown(title, year, cover_url, overview, scene_name, tech);
         let req = UploadRequest {
             title: scene_name.to_string(),
             description_markdown: md,
             torrent_path,
+            kind: ContentKind::Movie,
+        };
+
+        let mut last_err: Option<Error> = None;
+        for uploader in &self.uploaders {
+            if let Err(e) = uploader.upload_torrent(req.clone()).await {
+                tracing::error!("Uploader failed for '{}': {e}", scene_name);
+                last_err = Some(e);
+            }
+        }
+
+        if let Some(e) = last_err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub async fn upload_episode_torrent(
+        &self,
+        series_title: &str,
+        episode_heading: &str,
+        cover_url: Option<&str>,
+        overview: Option<&str>,
+        scene_name: &str,
+        tech: &TechnicalInfo,
+        torrent_path: PathBuf,
+        kind: ContentKind,
+    ) -> Result<(), Error> {
+        if !self.enabled {
+            return Ok(());
+        }
+        if self.dry_run {
+            tracing::info!(
+                "Upload dry-run enabled: skipping upload for '{}'",
+                scene_name
+            );
+            return Ok(());
+        }
+
+        let md = description::build_episode_markdown(
+            series_title,
+            episode_heading,
+            cover_url,
+            overview,
+            scene_name,
+            tech,
+        );
+
+        let req = UploadRequest {
+            title: scene_name.to_string(),
+            description_markdown: md,
+            torrent_path,
+            kind,
         };
 
         let mut last_err: Option<Error> = None;
