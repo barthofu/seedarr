@@ -1,21 +1,47 @@
 use super::types::{DecisionReason, RadarrHints, SceneDecision, SceneNameParts, TechnicalInfo, ValidationResult};
 use std::collections::BTreeSet;
+use unicode_normalization::UnicodeNormalization;
 
 fn normalize_tokens_to_scene<S: AsRef<str>>(s: S) -> String {
-    // Replace whitespace and separators with dots, collapse, strip leading/trailing dots
-    let mut out = String::with_capacity(s.as_ref().len());
+    // Normalize to NFC so composed letters like "À" are stable.
+    // Then replace separators with dots, collapse, strip leading/trailing dots.
+    let normalized: String = s.as_ref().nfc().collect();
+
+    let mut out = String::with_capacity(normalized.len());
     let mut last_dot = false;
-    for ch in s.as_ref().chars() {
-        let is_sep = ch.is_whitespace() || matches!(ch, ':' | ';' | ',' | '/' | '\\' | '|' | '!' | '?' | '\'' | '"' | '&' | '-' | '(' | ')' | '[' | ']' | '{' | '}');
-        let is_dot = ch == '.' || is_sep;
-        if is_dot {
-            if !last_dot { out.push('.'); last_dot = true; }
-        } else {
+    for ch in normalized.chars() {
+        // Keep letters/digits from any language.
+        // Everything else acts as a separator (dot), except a few special symbols we drop.
+        let is_word = ch.is_alphanumeric();
+        let is_drop_symbol = matches!(ch, '©' | '®' | '™' | '℗');
+
+        if is_word {
             last_dot = false;
             out.push(ch);
+            continue;
+        }
+
+        if is_drop_symbol || ch.is_control() {
+            continue;
+        }
+
+        // Separator → dot (collapse consecutive)
+        if !last_dot {
+            out.push('.');
+            last_dot = true;
         }
     }
     out.trim_matches('.').to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_tokens_to_scene;
+
+    #[test]
+    fn keeps_accented_letters() {
+        assert_eq!(normalize_tokens_to_scene("À bout de souffle"), "À.bout.de.souffle");
+    }
 }
 
 // removed: pick helper no longer needed
