@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
 impl Config {
-
     pub fn init() -> Result<Self, config::ConfigError> {
         // get config toml dir from env, with default
         let config_path =
@@ -122,7 +121,9 @@ pub struct TorrentConfig {
     pub dry_run: bool,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 // ===============================================================================
 // Logs

@@ -9,7 +9,9 @@ use crate::config::TorrustUploadConfig;
 use super::{TrackerUploader, UploadRequest};
 
 fn category_or_default(cfg: &TorrustUploadConfig) -> String {
-    cfg.movies_category.clone().unwrap_or_else(|| "movies".to_string())
+    cfg.movies_category
+        .clone()
+        .unwrap_or_else(|| "movies".to_string())
 }
 
 fn tags_json_or_default(cfg: &TorrustUploadConfig) -> String {
@@ -56,9 +58,12 @@ impl TrackerUploader for TorrustUploader {
             .unwrap_or("upload.torrent")
             .to_string();
 
-        let torrent_bytes = tokio::fs::read(&req.torrent_path)
-            .await
-            .map_err(|e| Error::Other(format!("Failed to read torrent file '{}': {e}", req.torrent_path.display())))?;
+        let torrent_bytes = tokio::fs::read(&req.torrent_path).await.map_err(|e| {
+            Error::Other(format!(
+                "Failed to read torrent file '{}': {e}",
+                req.torrent_path.display()
+            ))
+        })?;
 
         let torrent_part = Part::bytes(torrent_bytes)
             .file_name(torrent_file_name)
@@ -95,7 +100,9 @@ impl TrackerUploader for TorrustUploader {
         }
 
         if !status.is_success() {
-            return Err(Error::Other(format!("Torrust upload failed: HTTP {status} body={body}")));
+            return Err(Error::Other(format!(
+                "Torrust upload failed: HTTP {status} body={body}"
+            )));
         }
 
         Ok(())

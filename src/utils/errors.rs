@@ -2,7 +2,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-
     #[error("HTTP request failed: {0}")]
     HttpRequestError(#[from] reqwest::Error),
 

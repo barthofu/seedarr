@@ -28,7 +28,11 @@ pub struct UploadService {
 
 impl UploadService {
     pub fn disabled() -> Self {
-        Self { enabled: false, dry_run: false, uploaders: Vec::new() }
+        Self {
+            enabled: false,
+            dry_run: false,
+            uploaders: Vec::new(),
+        }
     }
 
     pub fn from_config(config: &crate::config::Config) -> Result<Self, Error> {
@@ -51,18 +55,25 @@ impl UploadService {
                 if tracker.eq_ignore_ascii_case("torrust") {
                     let Some(tcfg) = upload_cfg.torrust.as_ref() else {
                         return Err(Error::Other(
-                            "upload.tracker is 'torrust' but [upload.torrust] config is missing".to_string(),
+                            "upload.tracker is 'torrust' but [upload.torrust] config is missing"
+                                .to_string(),
                         ));
                     };
                     uploaders.push(Box::new(torrust::TorrustUploader::new(tcfg.clone())));
                 } else {
-                    return Err(Error::Other(format!("Unsupported upload.tracker: {tracker}")));
+                    return Err(Error::Other(format!(
+                        "Unsupported upload.tracker: {tracker}"
+                    )));
                 }
             }
         }
 
         let enabled = !uploaders.is_empty();
-        Ok(Self { enabled, dry_run: upload_cfg.dry_run, uploaders })
+        Ok(Self {
+            enabled,
+            dry_run: upload_cfg.dry_run,
+            uploaders,
+        })
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -83,7 +94,10 @@ impl UploadService {
             return Ok(());
         }
         if self.dry_run {
-            tracing::info!("Upload dry-run enabled: skipping upload for '{}'", scene_name);
+            tracing::info!(
+                "Upload dry-run enabled: skipping upload for '{}'",
+                scene_name
+            );
             return Ok(());
         }
 
@@ -102,6 +116,10 @@ impl UploadService {
             }
         }
 
-        if let Some(e) = last_err { Err(e) } else { Ok(()) }
+        if let Some(e) = last_err {
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 }

@@ -46,11 +46,21 @@ pub fn build_markdown(
 
     // Video
     let mut video_bits = Vec::new();
-    if let Some(res) = &tech.resolution { video_bits.push(res.clone()); }
-    if let Some(v) = &tech.video_codec { video_bits.push(v.clone()); }
-    if let Some(bd) = &tech.bit_depth { video_bits.push(bd.clone()); }
-    if tech.dv { video_bits.push("DV".to_string()); }
-    if tech.hdr && !tech.dv { video_bits.push("HDR".to_string()); }
+    if let Some(res) = &tech.resolution {
+        video_bits.push(res.clone());
+    }
+    if let Some(v) = &tech.video_codec {
+        video_bits.push(v.clone());
+    }
+    if let Some(bd) = &tech.bit_depth {
+        video_bits.push(bd.clone());
+    }
+    if tech.dv {
+        video_bits.push("DV".to_string());
+    }
+    if tech.hdr && !tech.dv {
+        video_bits.push("HDR".to_string());
+    }
 
     if !video_bits.is_empty() {
         md.push_str("- **Video:** ");
@@ -60,10 +70,19 @@ pub fn build_markdown(
 
     // Audio
     let mut audio_bits = Vec::new();
-    if let Some(a) = &tech.audio_codec { audio_bits.push(a.clone()); }
-    if let Some(ch) = &tech.audio_channels { audio_bits.push(ch.clone()); }
+    if let Some(a) = &tech.audio_codec {
+        audio_bits.push(a.clone());
+    }
+    if let Some(ch) = &tech.audio_channels {
+        audio_bits.push(ch.clone());
+    }
     if !tech.audio_languages.is_empty() {
-        let langs = tech.audio_languages.iter().cloned().collect::<Vec<_>>().join(", ");
+        let langs = tech
+            .audio_languages
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
         audio_bits.push(format!("langs: {langs}"));
     }
     if tech.has_vfi {
@@ -77,7 +96,12 @@ pub fn build_markdown(
 
     // Subtitles
     if !tech.subtitle_languages.is_empty() {
-        let langs = tech.subtitle_languages.iter().cloned().collect::<Vec<_>>().join(", ");
+        let langs = tech
+            .subtitle_languages
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
         md.push_str("- **Subtitles:** ");
         md.push_str(&langs);
         md.push('\n');

@@ -5,17 +5,18 @@ use super::types::{Issue, ValidationResult};
 
 static YEAR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<year>(19|20)\d{2})").unwrap());
 
-static RESOLUTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(480p|576p|720p|1080p|2160p|4k|8k)\b").unwrap()
-});
+static RESOLUTION_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)\b(480p|576p|720p|1080p|2160p|4k|8k)\b").unwrap());
 
 static SOURCE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(AMZN(\.WEB(-?DL)?)?|WEB(-?DL|Rip)?|Blu[- ]?Ray|BRRip|BDRip|HDLight|HDLigh|mHD)\b").unwrap()
+    Regex::new(
+        r"(?i)\b(AMZN(\.WEB(-?DL)?)?|WEB(-?DL|Rip)?|Blu[- ]?Ray|BRRip|BDRip|HDLight|HDLigh|mHD)\b",
+    )
+    .unwrap()
 });
 
-static VIDEO_CODEC_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(x265|x264|h\.?265|h\.?264|hevc|avc)\b").unwrap()
-});
+static VIDEO_CODEC_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)\b(x265|x264|h\.?265|h\.?264|hevc|avc)\b").unwrap());
 
 fn looks_dot_separated(name: &str) -> bool {
     let dot_count = name.matches('.').count();
@@ -49,7 +50,10 @@ pub fn validate_scene_name(name: &str) -> ValidationResult {
         }
     }
 
-    ValidationResult { valid: issues.is_empty(), issues }
+    ValidationResult {
+        valid: issues.is_empty(),
+        issues,
+    }
 }
 
 pub fn is_scene_name_valid(name: &str) -> bool {
@@ -82,8 +86,14 @@ mod tests {
 
         let r = validate_scene_name(bad2);
         assert!(r.issues.iter().any(|i| matches!(i, Issue::MissingDots)));
-        assert!(!r.issues.iter().any(|i| matches!(i, Issue::MissingVideoCodec)));
-        assert!(!r.issues.iter().any(|i| matches!(i, Issue::MissingResolution)));
+        assert!(!r
+            .issues
+            .iter()
+            .any(|i| matches!(i, Issue::MissingVideoCodec)));
+        assert!(!r
+            .issues
+            .iter()
+            .any(|i| matches!(i, Issue::MissingResolution)));
         assert!(!r.issues.iter().any(|i| matches!(i, Issue::MissingSource)));
     }
 }
